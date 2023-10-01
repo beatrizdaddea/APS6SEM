@@ -42,6 +42,8 @@ while True:
             # Nível 3
             elif face_recognition.compare_faces([codificacao_referencia_nivel3], codificacao)[0]:
                 nivel_acesso = "Nivel 3 - Acesso somente ao ministro do meio ambiente"
+            else:
+                nivel_acesso = "Acesso Negado"
 
             # Exiba o nível de acesso na imagem
             if nivel_acesso:
