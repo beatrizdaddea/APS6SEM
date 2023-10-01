@@ -35,22 +35,22 @@ while True:
 
             # Nível 1
             if face_recognition.compare_faces([codificacao_referencia_nivel1], codificacao)[0]:
-                nivel_acesso = "Nível 1 - Acesso permitido a todos"
+                nivel_acesso = "Nivel 1 - Acesso permitido a todos"
             # Nível 2
             elif face_recognition.compare_faces([codificacao_referencia_nivel2], codificacao)[0]:
-                nivel_acesso = "Nível 2 - Acesso restrito a diretores de divisões"
+                nivel_acesso = "Nivel 2 - Acesso limitado aos gerentes de departamentos"
             # Nível 3
             elif face_recognition.compare_faces([codificacao_referencia_nivel3], codificacao)[0]:
-                nivel_acesso = "Nível 3 - Acesso somente ao ministro do meio ambiente"
+                nivel_acesso = "Nivel 3 - Acesso somente ao ministro do meio ambiente"
 
             # Exiba o nível de acesso na imagem
             if nivel_acesso:
-                cv2.putText(frame, nivel_acesso, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.putText(frame, nivel_acesso, (0, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
     # Exiba o frame
-    cv2.imshow("Sistema de Segurança", frame)
+    cv2.imshow("Sistema de Seguranca", frame)
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(5) == 27:
         break
 
 webcam.release()
