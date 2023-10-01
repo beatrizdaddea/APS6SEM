@@ -1,71 +1,57 @@
-import face_recognition
 import cv2
-import numpy as np
-from time import sleep
+import face_recognition
 
-RED = "\033[1;31m"
-CYAN = "\033[1;96m"
-GREEN = "\033[1;92m"
+# Carregue as imagens de referência e codifique-as
+imagem_referencia_nivel1 = face_recognition.load_image_file("px-woman-smilings.jpg")
+codificacao_referencia_nivel1 = face_recognition.face_encodings(imagem_referencia_nivel1)[0]
 
-# Get a reference to webcam #0 (the default one)
-video_capture = cv2.VideoCapture(0)
+imagem_referencia_nivel2 = face_recognition.load_image_file("px-woman-smilings.jpg")
+codificacao_referencia_nivel2 = face_recognition.face_encodings(imagem_referencia_nivel2)[0]
 
-# Check if the camera opened successfully
-if not video_capture.isOpened():
-    print(RED + "Erro ao abrir a câmera.")
-    exit()
+imagem_referencia_nivel3 = face_recognition.load_image_file("px-woman-smilings.jpg")
+codificacao_referencia_nivel3 = face_recognition.face_encodings(imagem_referencia_nivel3)[0]
 
-# Load a sample picture and learn how to recognize it.
-rafael1_image = face_recognition.load_image_file("px-woman-smilings.jpg")
-rafael1_face_encoding = face_recognition.face_encodings(rafael1_image)[0]
-
-# Create arrays of known face encodings and their names
-known_face_encodings = [
-    rafael1_face_encoding,
-]
-
-known_face_names = [
-    "Rafael Felipe",
-]
-
-face_locations = []
-face_encodings = []
-face_names = []
-process_this_frame = True
+# Inicialize a webcam
+webcam = cv2.VideoCapture(0)
 
 while True:
-    ret, frame = video_capture.read()
-    
-    # Check if the frame is valid
+    ret, frame = webcam.read()
+
     if not ret:
-        print(RED + "Erro ao capturar o quadro da câmera.")
         break
-    
-    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
-    rgb_small_frame = small_frame[:, :, ::-1]
-    
-    if process_this_frame:
-        face_locations = face_recognition.face_locations(rgb_small_frame)
-        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-        face_names = []
-        for face_encoding in face_encodings:
-            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-            name = "Unknown"
-            face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
-            best_match_index = np.argmin(face_distances)
-            if matches[best_match_index]:
-                name = known_face_names[best_match_index]
-            face_names.append(name)
 
-    process_this_frame = not process_this_frame
+    # Converta o frame para RGB (necessário para face_recognition)
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    if 'Rafael Felipe' in face_names:
-        print(GREEN + "Acesso Autorizado." + CYAN + "Bem-vindo de volta Rafael!")
+    # Detecte rostos no frame
+    face_locations = face_recognition.face_locations(rgb_frame)
+    if face_locations:
+        # Codifique o rosto detectado
+        codificacoes = face_recognition.face_encodings(rgb_frame, face_locations)
+
+        for codificacao in codificacoes:
+            # Compare a codificação do rosto com as imagens de referência dos diferentes níveis
+            nivel_acesso = None
+
+            # Nível 1
+            if face_recognition.compare_faces([codificacao_referencia_nivel1], codificacao)[0]:
+                nivel_acesso = "Nível 1 - Acesso permitido a todos"
+            # Nível 2
+            elif face_recognition.compare_faces([codificacao_referencia_nivel2], codificacao)[0]:
+                nivel_acesso = "Nível 2 - Acesso restrito a diretores de divisões"
+            # Nível 3
+            elif face_recognition.compare_faces([codificacao_referencia_nivel3], codificacao)[0]:
+                nivel_acesso = "Nível 3 - Acesso somente ao ministro do meio ambiente"
+
+            # Exiba o nível de acesso na imagem
+            if nivel_acesso:
+                cv2.putText(frame, nivel_acesso, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+    # Exiba o frame
+    cv2.imshow("Sistema de Segurança", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-    else:
-        print(RED + 'Acesso negado.')
-        sleep(3)
 
-# Release handle to the webcam
-video_capture.release()
+webcam.release()
 cv2.destroyAllWindows()
