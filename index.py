@@ -1,59 +1,84 @@
 import cv2
 import face_recognition
+import numpy as np
 
-# Carregue as imagens de referência e codifique-as
-imagem_referencia_nivel1 = face_recognition.load_image_file("px-woman-smilings.jpg")
-codificacao_referencia_nivel1 = face_recognition.face_encodings(imagem_referencia_nivel1)[0]
+imagemID1 = face_recognition.load_image_file("Beatriz.jpg")
+codificacaoID1 = face_recognition.face_encodings(imagemID1)[0]
 
-imagem_referencia_nivel2 = face_recognition.load_image_file("mateus.jpg")
-codificacao_referencia_nivel2 = face_recognition.face_encodings(imagem_referencia_nivel2)[0]
+imagemID2 = face_recognition.load_image_file("Mateus.jpg")
+codificacaoID2 = face_recognition.face_encodings(imagemID2)[0]
 
-imagem_referencia_nivel3 = face_recognition.load_image_file("px-woman-smilings.jpg")
-codificacao_referencia_nivel3 = face_recognition.face_encodings(imagem_referencia_nivel3)[0]
+imagemID3 = face_recognition.load_image_file("Rafael.jpg")
+codificacaoID3 = face_recognition.face_encodings(imagemID3)[0]
 
-# Inicialize a webcam
-webcam = cv2.VideoCapture(0)
+camera = cv2.VideoCapture(0)
 
-# Defina o tamanho da janela
 cv2.namedWindow("Sistema de Seguranca", cv2.WINDOW_NORMAL)
-cv2.resizeWindow("Sistema de Seguranca", 800, 600)  # Defina o tamanho desejado (largura, altura)
+cv2.resizeWindow("Sistema de Seguranca", 800, 600)  
+
+codFacesConhecidas = [
+    codificacaoID1,
+    codificacaoID2,
+    codificacaoID3
+]
+nomeFacesConhecidas = [
+    "Beatriz",
+    "Mateus",
+    "Rafael"
+]
+
+codificacoes = []
 
 while True:
-    ret, frame = webcam.read()
+    ret, frame = camera.read()
     if not ret:
         break
 
-    # Converta o frame para RGB (necessário para face_recognition)
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+    rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
 
-    # Detecte rostos no frame
-    face_locations = face_recognition.face_locations(rgb_frame)
-    if face_locations:
-        # Codifique o rosto detectado
-        codificacoes = face_recognition.face_encodings(rgb_frame, face_locations)
-
+    posicaoDoRosto = face_recognition.face_locations(rgb_small_frame)
+    if posicaoDoRosto:
+        codificacoes = face_recognition.face_encodings(rgb_small_frame, posicaoDoRosto)
+        
+        nomeFaces = []
         for codificacao in codificacoes:
-            # Compare a codificação do rosto com as imagens de referência dos diferentes níveis
-            nivel_acesso = None
-                        
-            # Nível 2
-            if face_recognition.compare_faces([codificacao_referencia_nivel2], codificacao)[0]:
-                nivel_acesso = "Nivel 2 - Acesso limitado aos gerentes de departamentos"
-            # Nível 3
-            elif face_recognition.compare_faces([codificacao_referencia_nivel3], codificacao)[0]:
-                nivel_acesso = "Nivel 3 - Acesso somente ao ministro do meio ambiente"
-            # Nível 1    
-            else:
-                nivel_acesso = "Nivel 1 - Acesso permitido a todos"
-            # Exiba o nível de acesso na imagem
-            if nivel_acesso:
-                cv2.putText(frame, nivel_acesso, (0, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
+            nivelDeAcesso = None
 
-    # Exiba o frame
+            if face_recognition.compare_faces([codificacaoID1], codificacao)[0]:
+                nivelDeAcesso = "Nivel 1"
+                        
+            elif face_recognition.compare_faces([codificacaoID2], codificacao)[0]:
+                nivelDeAcesso = "Nivel 2"
+
+            elif face_recognition.compare_faces([codificacaoID3], codificacao)[0]:
+                nivelDeAcesso = "Nivel 3"
+            
+            comparacao = face_recognition.compare_faces(codFacesConhecidas, codificacao)
+            nome = "Unknown"
+            distanciaDoRosto = face_recognition.face_distance(codFacesConhecidas, codificacao)
+            index = np.argmin(distanciaDoRosto)
+            if comparacao[index]:
+                nome = nomeFacesConhecidas[index] + " - " + nivelDeAcesso
+            nomeFaces.append(nome)
+
+        
+    for (top, right, bottom, left), name in zip(posicaoDoRosto, nomeFaces):
+        top *= 4
+        right *= 4
+        bottom *= 4
+        left *= 4
+
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+
+        cv2.rectangle(frame, (left, bottom), (right, bottom + 35), (0, 0, 255), cv2.FILLED)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        cv2.putText(frame, name, (left, bottom + 30), font, 0.6, (255, 255, 255), 1)
+
     cv2.imshow("Sistema de Seguranca", frame)
 
     if cv2.waitKey(5) == 27:
         break
 
-webcam.release()
+camera.release()
 cv2.destroyAllWindows()
