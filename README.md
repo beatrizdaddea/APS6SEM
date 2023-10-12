@@ -18,14 +18,15 @@ meio ambiente.
     ```
 - Instalar Dependências e Bibliotecas necessárias para o funcionamento da aplicação
 
-        ```python
+    ```python
         pip install opencv-python 
         pip install numpy
         pip install cmake
         pip install boost
         conda install -c conda-forge c
-        pip install face_recognition
-        ```
+        pip install face_recognition 
+    ```
+
 
 ## Autores
 
