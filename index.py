@@ -1,71 +1,82 @@
-import face_recognition
 import cv2
-import numpy as np
-from time import sleep
+import pickle
+import face_recognition
 
-RED = "\033[1;31m"
-CYAN = "\033[1;96m"
-GREEN = "\033[1;92m"
+cv2.namedWindow("Sistema de Seguranca", cv2.WINDOW_NORMAL)
+cv2.resizeWindow("Sistema de Seguranca", 800, 600)  
 
-# Get a reference to webcam #0 (the default one)
-video_capture = cv2.VideoCapture(0)
+def predict(img_path, knn_clf=None, model_path=None, threshold=0.6):
+    if knn_clf is None and model_path is None:
+        raise Exception("Deve fornecer o classificador knn através de knn_clf ou model_path")
+    # Carrega um modelo KNN treinado
+    if knn_clf is None:
+        with open(model_path, 'rb') as f:
+            knn_clf = pickle.load(f)
+    # Carrega o arquivo de imagem e detecta os rostos
+    imagem = img_path
+    posicaoRosto = face_recognition.face_locations(imagem)
+    # Se nenhum rosto for encontrado na imagem, retorna um resultado vazio.
+    if len(posicaoRosto) == 0:
+        return []
+    # Encontra codificações para rostos na imagem de teste
+    codificacoes = face_recognition.face_encodings(imagem, known_face_locations=posicaoRosto)
+    # Usa o modelo KNN para encontrar a face que melhor corresponde
+    menorDistancia = knn_clf.kneighbors(codificacoes, n_neighbors=2)
+    corresponde = [menorDistancia[0][i][0] <= threshold for i in range(len(posicaoRosto))]
+    # Preve classes e remove classificações que não estejam dentro do limite
+    return [
+        (predicao, local) 
+        if rec 
+        else 
+            ("unknown", local) 
+        for predicao, local, rec in zip(knn_clf.predict(codificacoes),posicaoRosto,corresponde)
+    ]
 
-# Check if the camera opened successfully
-if not video_capture.isOpened():
-    print(RED + "Erro ao abrir a câmera.")
-    exit()
-
-# Load a sample picture and learn how to recognize it.
-rafael1_image = face_recognition.load_image_file("px-woman-smilings.jpg")
-rafael1_face_encoding = face_recognition.face_encodings(rafael1_image)[0]
-
-# Create arrays of known face encodings and their names
-known_face_encodings = [
-    rafael1_face_encoding,
-]
-
-known_face_names = [
-    "Rafael Felipe",
-]
-
-face_locations = []
-face_encodings = []
-face_names = []
-process_this_frame = True
+# Inicia a webcam
+webcam = cv2.VideoCapture(0)
 
 while True:
-    ret, frame = video_capture.read()
+    # Loop enquanto a câmera estiver funcionando
+    verificar = False
+    while(not verificar):
+        # Coloca a imagem da webcam em 'frame'
+        (verificar, frame) = webcam.read()
+        if(not verificar):
+            print("Falha ao abrir a WebCam. Tente novamente.")
+
+    frame=cv2.flip(frame,1) # Inverte o sentido horizontal do frame
+    frame_copy = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+    # Converta a imagem da cor BGR (que o OpenCV usa) para a cor RGB (que o face_recognition usa)
+    frame_copy=cv2.cvtColor(frame_copy, cv2.COLOR_BGR2RGB)
+    predictions = predict(frame_copy, model_path="classifier/trained_knn_model.clf")
+    for name, (top, right, bottom, left) in predictions:
+        # Redimensiona o quadro, pois ele foi dimensionado para 1/4 de tamanho
+        top *= 4 
+        right *= 4
+        bottom *= 4
+        left *= 4
+        # Verifica quem é a pessoa reconhecida e atribui o nivel de acesso
+        if name == "Beatriz":
+            name += " - Nivel 1"
+                        
+        elif name == "Mateus":
+            name += " - Nivel 2"
+
+        elif name == "Rafael":
+            name += " - Nivel 3"
+            
+        # Desenha o retângulo ao redor do rosto reconhecido junto ao nome
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+
+        cv2.rectangle(frame, (left, bottom), (right, bottom + 35), (0, 0, 255), cv2.FILLED)
+        fonte = cv2.FONT_HERSHEY_DUPLEX
+        cv2.putText(frame, name, (left, bottom + 30), fonte, 0.6, (255, 255, 255), 1)
+        
+    cv2.imshow('Sistema de Seguranca', frame)
     
-    # Check if the frame is valid
-    if not ret:
-        print(RED + "Erro ao capturar o quadro da câmera.")
+    if cv2.waitKey(5) == 27: # Encerra a aplicação com a tecla Esc
         break
-    
-    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
-    rgb_small_frame = small_frame[:, :, ::-1]
-    
-    if process_this_frame:
-        face_locations = face_recognition.face_locations(rgb_small_frame)
-        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-        face_names = []
-        for face_encoding in face_encodings:
-            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-            name = "Unknown"
-            face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
-            best_match_index = np.argmin(face_distances)
-            if matches[best_match_index]:
-                name = known_face_names[best_match_index]
-            face_names.append(name)
 
-    process_this_frame = not process_this_frame
-
-    if 'Rafael Felipe' in face_names:
-        print(GREEN + "Acesso Autorizado." + CYAN + "Bem-vindo de volta Rafael!")
-        break
-    else:
-        print(RED + 'Acesso negado.')
-        sleep(3)
-
-# Release handle to the webcam
-video_capture.release()
+webcam.release()
 cv2.destroyAllWindows()
+    
